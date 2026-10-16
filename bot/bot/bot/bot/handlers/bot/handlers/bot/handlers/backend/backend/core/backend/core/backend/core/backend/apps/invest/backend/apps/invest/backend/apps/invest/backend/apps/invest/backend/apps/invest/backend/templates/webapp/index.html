@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Birds VIP Farm</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <style>
+        body {
+            background: radial-gradient(circle at top, #1e1b4b, #09090b);
+            color: #f8fafc;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        }
+        .glass-card {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+    </style>
+</head>
+<body class="min-h-screen p-4 flex flex-col items-center select-none" x-data="farmApp()">
+
+    <!-- Sarlavha & Foydalanuvchi ma'lumoti -->
+    <div class="w-full max-w-md flex justify-between items-center mb-6">
+        <div class="flex items-center gap-2">
+            <div class="w-10 h-10 rounded-full bg-gradient-to-tr from-amber-500 to-yellow-300 flex items-center justify-center font-bold text-lg shadow-lg shadow-amber-500/20">
+                🦅
+            </div>
+            <div>
+                <h1 class="text-sm font-semibold tracking-wide" x-text="userName">Fermer</h1>
+                <span class="text-xs text-emerald-400 font-mono">● Online</span>
+            </div>
+        </div>
+        <span class="text-xs px-2.5 py-1 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">VIP Farm</span>
+    </div>
+
+    <!-- Asosiy Balans Kartochkasi -->
+    <div class="w-full max-w-md glass-card rounded-2xl p-5 mb-6 shadow-xl relative overflow-hidden">
+        <div class="text-xs text-zinc-400 uppercase tracking-wider mb-1">Yig'ilgan Daromad</div>
+        <div class="flex items-baseline gap-2 mb-4">
+            <span class="text-3xl font-extrabold tracking-tight text-white font-mono" x-text="earnBalance.toFixed(4)">0.0000</span>
+            <span class="text-sm font-bold text-amber-400">USDT</span>
+        </div>
+
+        <button @click="collectProfit()" 
+                :disabled="isCollecting"
+                class="w-full py-3 px-4 rounded-xl font-bold bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 active:scale-95 transition-all duration-200 shadow-lg shadow-emerald-500/25 flex justify-center items-center gap-2">
+            <span>🌾 Daromadni yig'ish</span>
+        </button>
+    </div>
+
+    <!-- Navigatsiya tablari -->
+    <div class="w-full max-w-md flex rounded-xl bg-zinc-900/60 p-1 mb-6 border border-zinc-800">
+        <button @click="activeTab = 'market'" :class="activeTab === 'market' ? 'bg-zinc-800 text-white shadow' : 'text-zinc-400'" class="flex-1 py-2 text-xs font-semibold rounded-lg transition-all">Qushlar bozori</button>
+        <button @click="activeTab = 'my_birds'" :class="activeTab === 'my_birds' ? 'bg-zinc-800 text-white shadow' : 'text-zinc-400'" class="flex-1 py-2 text-xs font-semibold rounded-lg transition-all">Mening qushlarim</button>
+    </div>
+
+    <!-- Qushlar Bozori -->
+    <div x-show="activeTab === 'market'" class="w-full max-w-md space-y-3">
+        {% for pkg in packages %}
+        <div class="glass-card rounded-2xl p-4 flex items-center justify-between border-l-4 border-amber-500 hover:border-amber-400 transition-all">
+            <div class="flex items-center gap-3">
+                <div class="text-3xl bg-zinc-800/80 p-2.5 rounded-xl">{{ pkg.icon_emoji }}</div>
+                <div>
+                    <div class="font-bold text-sm text-zinc-100">{{ pkg.name }}</div>
+                    <div class="text-xs text-zinc-400">Kunlik daromad: <span class="text-emerald-400 font-semibold">+{{ pkg.daily_roi_percent }}%</span></div>
+                    <div class="text-[11px] text-zinc-500">Muddati: {{ pkg.period_days }} kun</div>
+                </div>
+            </div>
+            <button @click="buyBird({{ pkg.id }}, '{{ pkg.price_usdt }}')" class="px-3.5 py-2 rounded-xl text-xs font-bold bg-amber-500 hover:bg-amber-400 active:scale-95 text-zinc-950 shadow-md shadow-amber-500/20 transition-all">
+                {{ pkg.price_usdt }} USDT
+            </button>
+        </div>
+        {% empty %}
+        <div class="text-center text-zinc-500 text-xs py-8">Hozirda sotuvda qushlar yo'q</div>
+        {% endfor %}
+    </div>
+
+    <!-- Mening Qushlarim -->
+    <div x-show="activeTab === 'my_birds'" class="w-full max-w-md space-y-3">
+        {% for ub in user_birds %}
+        <div class="glass-card rounded-2xl p-4 flex items-center justify-between border-l-4 border-emerald-500">
+            <div class="flex items-center gap-3">
+                <div class="text-3xl bg-zinc-800/80 p-2.5 rounded-xl">{{ ub.package.icon_emoji }}</div>
+                <div>
+                    <div class="font-bold text-sm text-zinc-100">{{ ub.package.name }}</div>
+                    <div class="text-xs text-emerald-400">Kunlik foyda: +{{ ub.package.daily_roi_percent }}%</div>
+                    <div class="text-[10px] text-zinc-500">Tugash vaqti: {{ ub.expires_at|date:"d.m.Y H:i" }}</div>
+                </div>
+            </div>
+            <span class="text-xs px-2 py-1 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">Ishlamoqda</span>
+        </div>
+        {% empty %}
+        <div class="text-center text-zinc-500 text-xs py-8">Sizda hali qushlar mavjud emas</div>
+        {% endfor %}
+    </div>
+
+    <script>
+        function farmApp() {
+            return {
+                activeTab: 'market',
+                tg: window.Telegram.WebApp,
+                userName: 'Fermer',
+                tgId: null,
+                earnBalance: {{ user.earn_balance|default:"0.0000" }},
+                isCollecting: false,
+
+                init() {
+                    this.tg.ready();
+                    this.tg.expand();
+                    if (this.tg.initDataUnsafe && this.tg.initDataUnsafe.user) {
+                        this.userName = this.tg.initDataUnsafe.user.first_name;
+                        this.tgId = this.tg.initDataUnsafe.user.id;
+                    }
+                },
+
+                async collectProfit() {
+                    if (!this.tgId) return;
+                    this.isCollecting = true;
+                    try {
+                        const res = await fetch('/api/collect/', {
+                            method: 'POST',
+                            headers: {'Content-Type': 'application/json'},
+                            body: JSON.stringify({ tg_id: this.tgId })
+                        });
+                        const data = await res.json();
+                        if (data.success) {
+                            this.earnBalance = data.new_balance;
+                            this.tg.HapticFeedback.notificationOccurred('success');
+                        }
+                    } catch (e) {
+                        console.error(e);
+                    } finally {
+                        this.isCollecting = false;
+                    }
+                },
+
+                async buyBird(pkgId, price) {
+                    if (!confirm(`${price} USDT evaziga ushbu qushni sotib olasizmi?`)) return;
+                    try {
+                        const res = await fetch('/api/buy/', {
+                            method: 'POST',
+                            headers: {'Content-Type': 'application/json'},
+                            body: JSON.stringify({ tg_id: this.tgId, package_id: pkgId })
+                        });
+                        const data = await res.json();
+                        if (data.success) {
+                            alert('Tabriklaymiz, qush muvaffaqiyatli xarid qilindi!');
+                            window.location.reload();
+                        } else {
+                            alert(data.error || 'Xatolik yuz berdi');
+                        }
+                    } catch (e) {
+                        console.error(e);
+                    }
+                }
+            }
+        }
+    </script>
+</body>
+</html>
